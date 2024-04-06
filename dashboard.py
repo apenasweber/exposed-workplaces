@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import altair as alt
 
 # Define the path to the logos directory
 logos_path = "logos"
@@ -20,7 +21,7 @@ def normalize_and_count_categories(df, column_name):
     category_counts = all_categories.value_counts(normalize=True) * 100
     # Sort categories from highest to lowest
     category_counts = category_counts.sort_values(ascending=False)
-    return category_counts
+    return category_counts.reset_index(name='Value')
 
 
 # Function to handle button click for selecting a company
@@ -72,11 +73,24 @@ with col2:
         st.subheader(
             f"Categorias de Denúncias (%) - {st.session_state.empresa_selecionada}"
         )
-        st.bar_chart(categorias_contagem_empresa)
+        # Create the chart with the sorted DataFrame
+        bar_chart = alt.Chart(categorias_contagem_empresa).mark_bar().encode(
+            x=alt.X('Em quais categorias sua denúncia se encaixa?:N', sort=alt.EncodingSortField(field='Value', op='sum', order='ascending')),
+            y=alt.Y('Value:Q')
+        )
+
+        st.altair_chart(bar_chart, use_container_width=True)
         st.subheader(f"Denúncias da Empresa: {st.session_state.empresa_selecionada}")
         for denuncia in df_empresa["Denúncia"]:
             st.text(denuncia)  # Exibir denúncia com quebra automática de linha
     else:
         # Display the chart with categories for all companies
         st.subheader("Categorias de Denúncias (%)")
-        st.bar_chart(categorias_contagem)
+
+        # Create the chart with the sorted DataFrame
+        bar_chart = alt.Chart(categorias_contagem).mark_bar().encode(
+            x=alt.X('Em quais categorias sua denúncia se encaixa?:N', sort=alt.EncodingSortField(field='Value', op='sum', order='ascending')),
+            y=alt.Y('Value:Q')
+        )
+
+        st.altair_chart(bar_chart, use_container_width=True)
