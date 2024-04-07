@@ -3,6 +3,9 @@ import pandas as pd
 import altair as alt
 import unicodedata
 
+caminho_do_logotipo = "logos/exposedworkplacesbig.png"
+
+
 # Lista de categorias válidas
 valid_categories = [
     "DIVERSIDADE",
@@ -107,14 +110,10 @@ def reset_multiselect_companies():
 
 # Left column: Top 5 most mentioned companies with generic logo
 with st.sidebar:
-
-    # Create a borderless button that refreshes the page when clicked
-    if st.button("Início", type="primary"):
-        reset_multiselect_companies()
-        st.session_state.empresa_selecionada = None
-        st.experimental_rerun()
+    # Exibe o logotipo na barra lateral
+    st.image(caminho_do_logotipo, use_column_width=True)
     st.title("Dashboard de Denúncias Tóxicas em Empresas")
-    st.subheader("Top 5 Empresas Mais Citadas")
+    st.subheader("Top 5 Empresas Mais Tóxicas")
     for empresa in ranking_empresas.index:
         if st.button(empresa, key=empresa):
             reset_multiselect_companies()
