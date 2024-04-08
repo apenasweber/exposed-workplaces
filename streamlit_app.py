@@ -5,7 +5,6 @@ import unicodedata
 
 caminho_do_logotipo = "logos/exposedworkplacesbig.png"
 
-
 # Lista de categorias válidas
 valid_categories = [
     "DIVERSIDADE",
@@ -21,8 +20,10 @@ valid_categories = [
 ]
 
 # Initialize session state
+st.set_page_config(layout="wide", page_title="Exposed Workplaces", page_icon="📊")
 if "empresa_selecionada" not in st.session_state:
     st.session_state["empresa_selecionada"] = None
+
 
 # Load and process CSV file
 df = pd.read_csv(
@@ -84,16 +85,7 @@ def selecionar_empresa(empresa):
 if "empresa_selecionada" not in st.session_state:
     st.session_state["empresa_selecionada"] = None
 
-# Load and process CSV file
-df = pd.read_csv(
-    "stream.csv",
-    usecols=[
-        "Nome da empresa",
-        "Denúncia",
-        "Em quais categorias sua denúncia se encaixa?",
-    ],
-)
-
+st.title("As Empresas mais Tóxicas do Brasil ☣️")
 # Normalize and count categories
 categorias_contagem = normalize_and_count_categories(
     df, "Em quais categorias sua denúncia se encaixa?"
@@ -101,6 +93,28 @@ categorias_contagem = normalize_and_count_categories(
 
 # Calculate the top 5 most mentioned companies
 ranking_empresas = df["Nome da empresa"].value_counts().head(5)
+
+denuncias_por_empresa = df["Nome da empresa"].value_counts().reset_index()
+denuncias_por_empresa.columns = ["Nome da empresa", "Quantidade de Denúncias"]
+
+# Filtrar para as top 10 empresas com maior número de denúncias
+top_10_denuncias_por_empresa = denuncias_por_empresa.head(10)
+
+# Criar o Gráfico de Barras com Altair para as top 10 empresas
+chart_top_10_empresas = (
+    alt.Chart(top_10_denuncias_por_empresa)
+    .mark_bar(color="red")
+    .encode(
+        x=alt.X("Nome da empresa:N", sort="-y", title="Empresas"),
+        y=alt.Y("Quantidade de Denúncias:Q", title="Quantidade de Denúncias"),
+        tooltip=["Nome da empresa", "Quantidade de Denúncias"],
+    )
+    .properties(width=600)  # Ajuste a largura conforme necessário
+)
+
+# Inserir o Gráfico na Página
+st.subheader("Top 10 Empresas com Maior Número de Denúncias")
+st.altair_chart(chart_top_10_empresas, use_container_width=True)
 
 
 def reset_multiselect_companies():
@@ -110,17 +124,19 @@ def reset_multiselect_companies():
 
 # Left column: Top 5 most mentioned companies with generic logo
 with st.sidebar:
+
     # Exibe o logotipo na barra lateral
     st.image(caminho_do_logotipo, use_column_width=True)
     st.title("Dashboard de Denúncias Tóxicas em Empresas")
-    st.subheader("Top 5 Empresas Mais Tóxicas")
-    for empresa in ranking_empresas.index:
-        if st.button(empresa, key=empresa):
-            reset_multiselect_companies()
-            selecionar_empresa([empresa])
+
+    # Limpar Seleção na linha 118
+    if st.button("Limpar Seleção", type="primary"):
+        reset_multiselect_companies()
+        st.session_state.empresa_selecionada = None
+        st.experimental_rerun()
 
     empresas = st.multiselect(
-        "Selecione uma ou mais empresas",
+        "Filtrar por Empresa",
         df["Nome da empresa"].unique(),
         key="multiselectcompanies",
         help="Selecione as empresas que quer ver no gráfico ao lado.",
@@ -129,8 +145,66 @@ with st.sidebar:
     if empresas:
         selecionar_empresa(empresas)
 
+    categorias = st.multiselect(
+        "Filtrar por Categoria",
+        valid_categories,  # Usando sua lista pré-definida de categorias válidas
+        key="multiselectcategories",
+        help="Selecione uma ou mais categorias para filtrar.",
+        max_selections=5,
+    )
 
-st.title("Dashboard de Denúncias Tóxicas em Empresas")
+    # Suponha que esta função esteja definida em algum lugar no seu script
+    def calcular_porcentagem_denuncias_por_empresa_categoria(df, categoria_escolhida):
+        # Certifique-se de que a categoria está em maiúsculas, já que suas categorias válidas estão em maiúsculas
+        categoria_escolhida = categoria_escolhida.upper()
+        # Filtrar o DataFrame para incluir apenas as linhas que contêm a categoria escolhida
+        df_filtrado = df[
+            df["Em quais categorias sua denúncia se encaixa?"]
+            .str.upper()
+            .str.contains(categoria_escolhida)
+        ]
+        # Contar denúncias por empresa na categoria escolhida
+        contagem_por_empresa = (
+            df_filtrado["Nome da empresa"].value_counts(normalize=True) * 100
+        )
+        # Converter a série em DataFrame para melhor manipulação e visualização
+        df_resultado = contagem_por_empresa.reset_index()
+        df_resultado.columns = ["Nome da empresa", "Porcentagem de denúncias"]
+        # Ordenar o DataFrame pelo número de denúncias em ordem decrescente
+        df_resultado = df_resultado.sort_values(
+            by="Porcentagem de denúncias", ascending=False
+        )
+        return df_resultado.head(5)
+
+
+if categorias:
+    for categoria_selecionada in categorias:
+        resultado = calcular_porcentagem_denuncias_por_empresa_categoria(
+            df, categoria_selecionada
+        )
+
+        # Subtítulo para cada categoria
+        st.subheader(
+            f"Porcentagem de denúncias na categoria '{categoria_selecionada}':"
+        )
+
+        # Gerar o gráfico de barras com Altair
+        chart = (
+            alt.Chart(resultado)
+            .mark_bar(color="#031f6d")
+            .encode(
+                x=alt.X("Nome da empresa:N", sort="-y"),
+                y=alt.Y("Porcentagem de denúncias:Q"),
+                color=alt.Color("Nome da empresa:N", legend=None),
+                tooltip=["Nome da empresa", "Porcentagem de denúncias"],
+            )
+            .properties(width=600)
+        )
+
+        # Exibir o gráfico de barras no Streamlit
+        st.altair_chart(chart, use_container_width=True)
+
+
 if st.session_state.empresa_selecionada:
     # Filter complaints for the selected company and recalculate categories
     df_empresa = df[df["Nome da empresa"].isin(st.session_state.empresa_selecionada)]
@@ -143,13 +217,13 @@ if st.session_state.empresa_selecionada:
     # Create the chart with the sorted DataFrame
     bar_chart = (
         alt.Chart(categorias_contagem_empresa)
-        .mark_bar()
+        .mark_bar(color="#031f6d")
         .encode(
             x=alt.X(
                 "Em quais categorias sua denúncia se encaixa?:N",
                 sort=alt.EncodingSortField(field="Value", op="sum", order="descending"),
             ),
-            y=alt.Y("Value:Q"),
+            y=alt.Y("Value:Q", title="Porcentagem (%)"),
         )
     )
 
@@ -167,7 +241,7 @@ else:
 
     bar_chart = (
         alt.Chart(categorias_contagem)
-        .mark_bar()
+        .mark_bar(color="#031f6d")
         .encode(
             x=alt.X(
                 "Em quais categorias sua denúncia se encaixa?:N",
