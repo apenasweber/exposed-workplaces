@@ -2,8 +2,17 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import unicodedata
+import os
 
 caminho_do_logotipo = "logos/exposedworkplacesbig.png"
+
+current_dir = (
+    os.path.dirname(os.path.abspath(__file__))
+    if "__file__" in locals()
+    else os.getcwd()
+)
+css_file = os.path.join(current_dir, "styles", "main.css")
+
 
 # Lista de categorias válidas
 valid_categories = [
@@ -19,8 +28,15 @@ valid_categories = [
     "CARGA DE TRABALHO EXCESSIVA",
 ]
 
-# Initialize session state
-st.set_page_config(layout="wide", page_title="Exposed Workplaces", page_icon="📊")
+
+def st_init():
+    # Initialize session state
+    st.set_page_config(layout="wide", page_title="Exposed Workplaces", page_icon="📊")
+
+    with open(css_file) as f:
+        st.markdown("<style>{}</style>".format(f.read()), unsafe_allow_html=True)
+
+
 if "empresa_selecionada" not in st.session_state:
     st.session_state["empresa_selecionada"] = None
 
